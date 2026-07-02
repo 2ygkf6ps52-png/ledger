@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d0f">
+<title>Ledger</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0d0d0f;
+    --panel: #16161a;
+    --panel-hi: #1d1d22;
+    --line: #2a2a30;
+    --ink: #e9e6df;
+    --dim: #6f6f78;
+    --green: #4ade80;
+    --green-dim: #1f3d2b;
+    --red: #f0785a;
+    --amber: #f4b942;
+    --radius: 14px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body { background: var(--bg); color: var(--ink); font-family: 'JetBrains Mono', monospace; }
+
+  body {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 40px);
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  .brand {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 44px;
+    letter-spacing: 2px;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .brand .dot { color: var(--green); }
+  .weekof {
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin: 22px 0 20px;
+  }
+  .tab {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--dim);
+    padding: 11px 0;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--panel-hi); color: var(--ink); border-color: var(--green-dim); }
+
+  /* Total hero */
+  .hero {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 20px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--green);
+  }
+  .hero .label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.5px; }
+  .hero .amount {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 60px;
+    line-height: 0.95;
+    margin-top: 6px;
+    color: var(--green);
+    letter-spacing: 1px;
+  }
+  .hero .breakdown { font-size: 12px; color: var(--dim); margin-top: 10px; }
+  .hero .breakdown b { color: var(--ink); font-weight: 500; }
+
+  /* Section */
+  .sec-title {
+    font-size: 11px; color: var(--dim); text-transform: uppercase;
+    letter-spacing: 1.5px; margin: 20px 4px 10px;
+  }
+
+  /* Day rows */
+  .day {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 7px;
+    transition: border-color 0.15s;
+  }
+  .day.today { border-color: var(--amber); }
+  .day .dinfo { display: flex; flex-direction: column; gap: 2px; }
+  .day .dname { font-size: 14px; font-weight: 500; }
+  .day .today-tag { font-size: 9px; color: var(--amber); letter-spacing: 1px; text-transform: uppercase; }
+  .day .ddate { font-size: 10px; color: var(--dim); }
+  .day .inwrap { display: flex; align-items: center; gap: 4px; }
+  .day .cur { font-size: 12px; color: var(--dim); }
+  input[type="number"] {
+    background: var(--panel-hi);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    width: 78px;
+    text-align: right;
+    padding: 8px 10px;
+    border-radius: 8px;
+    outline: none;
+  }
+  input[type="number"]:focus { border-color: var(--green); }
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .bigfield { display: flex; align-items: center; justify-content: space-between; }
+  .bigfield input { width: 110px; font-size: 17px; }
+
+  /* Gas total pill */
+  .gastotal {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; margin-top: 4px;
+    border-top: 1px dashed var(--line);
+    font-size: 13px;
+  }
+  .gastotal .v { color: var(--red); font-weight: 700; }
+
+  .endweek {
+    width: 100%;
+    margin-top: 26px;
+    background: var(--green);
+    color: #06130b;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.15s;
+  }
+  .endweek:active { transform: scale(0.98); }
+  .endweek:disabled { background: var(--line); color: var(--dim); cursor: default; }
+
+  /* History */
+  .hist-summary { display: flex; gap: 10px; margin-bottom: 18px; }
+  .stat {
+    flex: 1; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 14px;
+  }
+  .stat .k { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .stat .val { font-family: 'Bebas Neue', sans-serif; font-size: 34px; color: var(--ink); margin-top: 4px; line-height: 1; }
+  .stat.total .val { color: var(--green); }
+
+  .hrow {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 13px 15px; margin-bottom: 7px;
+  }
+  .hrow .hweek { font-size: 13px; }
+  .hrow .hsub { font-size: 10px; color: var(--dim); margin-top: 2px; }
+  .hrow .hamt { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--green); letter-spacing: 1px; }
+  .hrow .del { background: none; border: none; color: var(--dim); font-size: 16px; cursor: pointer; padding: 0 0 0 12px; }
+
+  .empty { text-align: center; color: var(--dim); font-size: 13px; padding: 50px 20px; line-height: 1.7; }
+  .empty .big { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--line); letter-spacing: 1px; }
+
+  .hide { display: none; }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px);
+    transform: translateX(-50%) translateY(80px);
+    background: var(--green); color: #06130b;
+    padding: 12px 22px; border-radius: 30px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+    opacity: 0; transition: all 0.3s; z-index: 100; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+  <div class="top">
+    <div class="brand">LEDGER<span class="dot">.</span></div>
+  </div>
+  <div class="weekof" id="weekLabel"></div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabWeek" onclick="showTab('week')">This Week</button>
+    <button class="tab" id="tabHist" onclick="showTab('hist')">History</button>
+  </div>
+
+  <!-- WEEK VIEW -->
+  <div id="weekView">
+    <div class="hero">
+      <div class="label">Total Income</div>
+      <div class="amount" id="totalAmt">0 zł</div>
+      <div class="breakdown" id="breakdown"></div>
+    </div>
+
+    <div class="sec-title">Daily Gas</div>
+    <div id="days"></div>
+    <div class="gastotal">
+      <span>Total Gas</span>
+      <span class="v" id="gasTotal">0 zł</span>
+    </div>
+
+    <div class="sec-title">End of Week</div>
+    <div class="day bigfield">
+      <span class="dname">Paycheck</span>
+      <div class="inwrap"><input type="number" inputmode="decimal" id="paycheck" placeholder="0" oninput="recalc()"></div>
+    </div>
+    <div class="day bigfield">
+      <span class="dname">Cash Received</span>
+      <div class="inwrap"><input type="number" inputmode="decimal" id="cash" placeholder="0" oninput="recalc()"></div>
+    </div>
+
+    <button class="endweek" id="endBtn" onclick="endWeek()">Close Week &amp; Save</button>
+  </div>
+
+  <!-- HISTORY VIEW -->
+  <div id="histView" class="hide">
+    <div class="hist-summary">
+      <div class="stat total"><div class="k">Total Earned</div><div class="val" id="histTotal">0 zł</div></div>
+      <div class="stat"><div class="k">Weekly Avg</div><div class="val" id="histAvg">0 zł</div></div>
+    </div>
+    <div id="histList"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const KEY_WEEK = 'ledger_week_v1';
+  const KEY_HIST = 'ledger_hist_v1';
+
+  const fmt = n => Math.round(n).toLocaleString('pl-PL') + ' zł';
+  const fmtDate = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+  function mondayOf(date) {
+    const d = new Date(date);
+    const day = (d.getDay() + 6) % 7; // Mon=0
+    d.setDate(d.getDate() - day);
+    d.setHours(0,0,0,0);
+    return d;
+  }
+
+  let state = load();
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY_WEEK);
+      if (raw) return JSON.parse(raw);
+    } catch(e) {}
+    return fresh();
+  }
+  function fresh() {
+    return { weekStart: mondayOf(new Date()).toISOString(), gas: [null,null,null,null,null,null,null], paycheck: null, cash: null };
+  }
+  function saveWeek() { localStorage.setItem(KEY_WEEK, JSON.stringify(state)); }
+
+  function getHist() {
+    try { return JSON.parse(localStorage.getItem(KEY_HIST)) || []; } catch(e) { return []; }
+  }
+  function setHist(h) { localStorage.setItem(KEY_HIST, JSON.stringify(h)); }
+
+  function renderWeek() {
+    const start = new Date(state.weekStart);
+    const end = new Date(start); end.setDate(end.getDate() + 6);
+    document.getElementById('weekLabel').textContent = 'Week of ' + fmtDate(start) + ' – ' + fmtDate(end);
+
+    const todayIdx = (new Date().getDay() + 6) % 7;
+    const sameWeek = mondayOf(new Date()).toISOString() === state.weekStart;
+
+    const container = document.getElementById('days');
+    container.innerHTML = '';
+    DAYS.forEach((name, i) => {
+      const d = new Date(start); d.setDate(d.getDate() + i);
+      const isToday = sameWeek && i === todayIdx;
+      const row = document.createElement('div');
+      row.className = 'day' + (isToday ? ' today' : '');
+      row.innerHTML = `
+        <div class="dinfo">
+          <span class="dname">${name}${isToday ? ' <span class="today-tag">• today</span>' : ''}</span>
+          <span class="ddate">${fmtDate(d)}</span>
+        </div>
+        <div class="inwrap">
+          <input type="number" inputmode="decimal" placeholder="0" value="${state.gas[i] ?? ''}"
+                 oninput="setGas(${i}, this.value)">
+        </div>`;
+      container.appendChild(row);
+    });
+
+    document.getElementById('paycheck').value = state.paycheck ?? '';
+    document.getElementById('cash').value = state.cash ?? '';
+    recalc();
+  }
+
+  function setGas(i, v) { state.gas[i] = v === '' ? null : parseFloat(v); saveWeek(); recalc(); }
+
+  function recalc() {
+    state.paycheck = valOf('paycheck');
+    state.cash = valOf('cash');
+    saveWeek();
+    const gas = state.gas.reduce((s,x) => s + (x||0), 0);
+    const total = (state.paycheck||0) + (state.cash||0) - gas;
+    document.getElementById('gasTotal').textContent = fmt(gas);
+    document.getElementById('totalAmt').textContent = fmt(total);
+    document.getElementById('breakdown').innerHTML =
+      `Paycheck <b>${fmt(state.paycheck||0)}</b> + Cash <b>${fmt(state.cash||0)}</b> − Gas <b>${fmt(gas)}</b>`;
+  }
+  function valOf(id) { const v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); }
+
+  function endWeek() {
+    const gas = state.gas.reduce((s,x) => s + (x||0), 0);
+    const total = (state.paycheck||0) + (state.cash||0) - gas;
+    const hasData = state.gas.some(x => x != null) || state.paycheck != null || state.cash != null;
+    if (!hasData) { toast('Nothing to save yet'); return; }
+
+    const hist = getHist();
+    const start = new Date(state.weekStart);
+    const end = new Date(start); end.setDate(end.getDate() + 6);
+    hist.unshift({
+      weekStart: state.weekStart,
+      label: fmtDate(start) + ' – ' + fmtDate(end),
+      total, gas,
+      paycheck: state.paycheck||0, cash: state.cash||0
+    });
+    setHist(hist);
+
+    // advance to next week, clear
+    const next = mondayOf(new Date(new Date(state.weekStart).getTime() + 7*86400000));
+    state = { weekStart: next.toISOString(), gas: [null,null,null,null,null,null,null], paycheck: null, cash: null };
+    saveWeek();
+    renderWeek();
+    renderHist();
+    toast('Week saved · ' + fmt(total));
+  }
+
+  function renderHist() {
+    const hist = getHist();
+    const list = document.getElementById('histList');
+    const total = hist.reduce((s,w) => s + w.total, 0);
+    document.getElementById('histTotal').textContent = fmt(total);
+    document.getElementById('histAvg').textContent = hist.length ? fmt(total / hist.length) : '0 zł';
+
+    if (!hist.length) {
+      list.innerHTML = '<div class="empty"><div class="big">No weeks logged</div>Close out your first week and it lands here.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    hist.forEach((w, idx) => {
+      const row = document.createElement('div');
+      row.className = 'hrow';
+      row.innerHTML = `
+        <div>
+          <div class="hweek">${w.label}</div>
+          <div class="hsub">Pay ${fmt(w.paycheck)} · Cash ${fmt(w.cash)} · Gas ${fmt(w.gas)}</div>
+        </div>
+        <div style="display:flex;align-items:center;">
+          <span class="hamt">${fmt(w.total)}</span>
+          <button class="del" onclick="delWeek(${idx})">✕</button>
+        </div>`;
+      list.appendChild(row);
+    });
+  }
+
+  function delWeek(idx) {
+    const hist = getHist();
+    hist.splice(idx, 1);
+    setHist(hist);
+    renderHist();
+    toast('Entry removed');
+  }
+
+  function showTab(which) {
+    const w = which === 'week';
+    document.getElementById('weekView').classList.toggle('hide', !w);
+    document.getElementById('histView').classList.toggle('hide', w);
+    document.getElementById('tabWeek').classList.toggle('active', w);
+    document.getElementById('tabHist').classList.toggle('active', !w);
+    if (!w) renderHist();
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  renderWeek();
+</script>
+</body>
+</html>
