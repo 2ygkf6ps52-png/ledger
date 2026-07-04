@@ -187,7 +187,21 @@
   .hrow .hweek { font-size: 13px; }
   .hrow .hsub { font-size: 10px; color: var(--dim); margin-top: 2px; }
   .hrow .hamt { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--green); letter-spacing: 1px; }
+  .hrow .hamt.prov { color: var(--amber); }
   .hrow .del { background: none; border: none; color: var(--dim); font-size: 16px; cursor: pointer; padding: 0 0 0 12px; }
+  .hrow.pending { border-color: var(--amber); align-items: flex-start; }
+  .ptag { font-size: 9px; color: var(--amber); letter-spacing: 0.5px; white-space: nowrap; }
+  .payadd { display: flex; gap: 6px; margin-top: 9px; }
+  .payadd input {
+    background: var(--panel-hi); border: 1px solid var(--line); color: var(--ink);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    width: 120px; padding: 7px 9px; border-radius: 8px; outline: none;
+  }
+  .payadd input:focus { border-color: var(--amber); }
+  .payadd button {
+    background: var(--amber); color: #1a1206; border: none; border-radius: 8px;
+    padding: 0 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
 
   .empty { text-align: center; color: var(--dim); font-size: 13px; padding: 50px 20px; line-height: 1.7; }
   .empty .big { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--line); letter-spacing: 1px; }
@@ -226,14 +240,18 @@
       <div class="breakdown" id="breakdown"></div>
     </div>
 
-    <div class="sec-title">Daily Gas</div>
+    <div class="sec-title">Daily LPG</div>
     <div id="days"></div>
     <div class="gastotal">
-      <span>Total Gas</span>
+      <span>Total LPG</span>
       <span class="v" id="gasTotal">0 zł</span>
     </div>
 
     <div class="sec-title">End of Week</div>
+    <div class="day bigfield">
+      <span class="dname">Petrol</span>
+      <div class="inwrap"><input type="number" inputmode="decimal" id="petrol" placeholder="0" oninput="recalc()"></div>
+    </div>
     <div class="day bigfield">
       <span class="dname">Paycheck</span>
       <div class="inwrap"><input type="number" inputmode="decimal" id="paycheck" placeholder="0" oninput="recalc()"></div>
@@ -283,12 +301,20 @@
     return fresh();
   }
   function fresh() {
-    return { weekStart: mondayOf(new Date()).toISOString(), gas: [null,null,null,null,null,null,null], paycheck: null, cash: null };
+    return { weekStart: mondayOf(new Date()).toISOString(), gas: [null,null,null,null,null,null,null], petrol: null, paycheck: null, cash: null };
   }
   function saveWeek() { localStorage.setItem(KEY_WEEK, JSON.stringify(state)); }
 
   function getHist() {
-    try { return JSON.parse(localStorage.getItem(KEY_HIST)) || []; } catch(e) { return []; }
+    let h;
+    try { h = JSON.parse(localStorage.getItem(KEY_HIST)) || []; } catch(e) { return []; }
+    let changed = false;
+    h.forEach((w, i) => {
+      if (w.id == null) { w.id = Date.now() - i; changed = true; }
+      if (w.pending == null) { w.pending = false; changed = true; }
+    });
+    if (changed) localStorage.setItem(KEY_HIST, JSON.stringify(h));
+    return h;
   }
   function setHist(h) { localStorage.setItem(KEY_HIST, JSON.stringify(h)); }
 
@@ -319,6 +345,7 @@
       container.appendChild(row);
     });
 
+    document.getElementById('petrol').value = state.petrol ?? '';
     document.getElementById('paycheck').value = state.paycheck ?? '';
     document.getElementById('cash').value = state.cash ?? '';
     recalc();
@@ -327,74 +354,106 @@
   function setGas(i, v) { state.gas[i] = v === '' ? null : parseFloat(v); saveWeek(); recalc(); }
 
   function recalc() {
+    state.petrol = valOf('petrol');
     state.paycheck = valOf('paycheck');
     state.cash = valOf('cash');
     saveWeek();
-    const gas = state.gas.reduce((s,x) => s + (x||0), 0);
-    const total = (state.paycheck||0) + (state.cash||0) - gas;
-    document.getElementById('gasTotal').textContent = fmt(gas);
+    const lpg = state.gas.reduce((s,x) => s + (x||0), 0);
+    const petrol = state.petrol||0;
+    const total = (state.paycheck||0) + (state.cash||0) - lpg - petrol;
+    document.getElementById('gasTotal').textContent = fmt(lpg);
     document.getElementById('totalAmt').textContent = fmt(total);
     document.getElementById('breakdown').innerHTML =
-      `Paycheck <b>${fmt(state.paycheck||0)}</b> + Cash <b>${fmt(state.cash||0)}</b> − Gas <b>${fmt(gas)}</b>`;
+      `Pay <b>${fmt(state.paycheck||0)}</b> + Cash <b>${fmt(state.cash||0)}</b> − LPG <b>${fmt(lpg)}</b> − Petrol <b>${fmt(petrol)}</b>`;
   }
   function valOf(id) { const v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); }
 
   function endWeek() {
-    const gas = state.gas.reduce((s,x) => s + (x||0), 0);
-    const total = (state.paycheck||0) + (state.cash||0) - gas;
-    const hasData = state.gas.some(x => x != null) || state.paycheck != null || state.cash != null;
+    const lpg = state.gas.reduce((s,x) => s + (x||0), 0);
+    const petrol = state.petrol||0;
+    const hasData = state.gas.some(x => x != null) || state.petrol != null || state.paycheck != null || state.cash != null;
     if (!hasData) { toast('Nothing to save yet'); return; }
+
+    const pending = state.paycheck == null;
+    const total = (state.paycheck||0) + (state.cash||0) - lpg - petrol;
 
     const hist = getHist();
     const start = new Date(state.weekStart);
     const end = new Date(start); end.setDate(end.getDate() + 6);
     hist.unshift({
+      id: Date.now(),
       weekStart: state.weekStart,
       label: fmtDate(start) + ' – ' + fmtDate(end),
-      total, gas,
-      paycheck: state.paycheck||0, cash: state.cash||0
+      total, gas: lpg, petrol,
+      paycheck: state.paycheck||0, cash: state.cash||0,
+      pending
     });
     setHist(hist);
 
     // advance to next week, clear
     const next = mondayOf(new Date(new Date(state.weekStart).getTime() + 7*86400000));
-    state = { weekStart: next.toISOString(), gas: [null,null,null,null,null,null,null], paycheck: null, cash: null };
+    state = { weekStart: next.toISOString(), gas: [null,null,null,null,null,null,null], petrol: null, paycheck: null, cash: null };
     saveWeek();
     renderWeek();
     renderHist();
-    toast('Week saved · ' + fmt(total));
+    toast(pending ? 'Week saved · paycheck pending' : 'Week saved · ' + fmt(total));
   }
 
   function renderHist() {
     const hist = getHist();
     const list = document.getElementById('histList');
-    const total = hist.reduce((s,w) => s + w.total, 0);
+    const settled = hist.filter(w => !w.pending);
+    const total = settled.reduce((s,w) => s + w.total, 0);
     document.getElementById('histTotal').textContent = fmt(total);
-    document.getElementById('histAvg').textContent = hist.length ? fmt(total / hist.length) : '0 zł';
+    document.getElementById('histAvg').textContent = settled.length ? fmt(total / settled.length) : '0 zł';
 
     if (!hist.length) {
       list.innerHTML = '<div class="empty"><div class="big">No weeks logged</div>Close out your first week and it lands here.</div>';
       return;
     }
     list.innerHTML = '';
-    hist.forEach((w, idx) => {
+    hist.forEach((w) => {
       const row = document.createElement('div');
-      row.className = 'hrow';
+      row.className = 'hrow' + (w.pending ? ' pending' : '');
+      const amountBlock = w.pending
+        ? `<span class="hamt prov">${fmt(w.total)}*</span>`
+        : `<span class="hamt">${fmt(w.total)}</span>`;
       row.innerHTML = `
-        <div>
-          <div class="hweek">${w.label}</div>
-          <div class="hsub">Pay ${fmt(w.paycheck)} · Cash ${fmt(w.cash)} · Gas ${fmt(w.gas)}</div>
+        <div style="flex:1;">
+          <div class="hweek">${w.label}${w.pending ? ' <span class="ptag">⏳ paycheck pending</span>' : ''}</div>
+          <div class="hsub">Pay ${w.pending ? '—' : fmt(w.paycheck)} · Cash ${fmt(w.cash)} · LPG ${fmt(w.gas)}${w.petrol ? ' · Petrol ' + fmt(w.petrol) : ''}</div>
+          ${w.pending ? `<div class="payadd">
+            <input type="number" inputmode="decimal" placeholder="paycheck zł" id="pay_${w.id}">
+            <button onclick="settleWeek(${w.id})">Add</button>
+          </div>` : ''}
         </div>
         <div style="display:flex;align-items:center;">
-          <span class="hamt">${fmt(w.total)}</span>
-          <button class="del" onclick="delWeek(${idx})">✕</button>
+          ${amountBlock}
+          <button class="del" onclick="delWeek(${w.id})">✕</button>
         </div>`;
       list.appendChild(row);
     });
   }
 
-  function delWeek(idx) {
+  function settleWeek(id) {
     const hist = getHist();
+    const w = hist.find(x => x.id === id);
+    if (!w) return;
+    const input = document.getElementById('pay_' + id);
+    const val = input && input.value !== '' ? parseFloat(input.value) : null;
+    if (val == null) { toast('Enter the paycheck amount'); return; }
+    w.paycheck = val;
+    w.pending = false;
+    w.total = val + (w.cash||0) - (w.gas||0) - (w.petrol||0);
+    setHist(hist);
+    renderHist();
+    toast('Week settled · ' + fmt(w.total));
+  }
+
+  function delWeek(id) {
+    const hist = getHist();
+    const idx = hist.findIndex(w => w.id === id);
+    if (idx === -1) return;
     hist.splice(idx, 1);
     setHist(hist);
     renderHist();
